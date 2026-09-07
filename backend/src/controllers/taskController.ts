@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
+import * as lifecycleService from '../services/lifecycleService';
 import * as taskService from '../services/taskService';
 import { createTaskSchema, updateTaskSchema } from '../validators/taskValidators';
+import { updateStatusSchema } from '../validators/statusValidators';
 
 export async function create(req: Request, res: Response) {
   const input = createTaskSchema.parse(req.body);
@@ -22,4 +24,10 @@ export async function update(req: Request, res: Response) {
 export async function remove(req: Request, res: Response) {
   await taskService.deleteTask(req.user!, req.params.id);
   res.status(204).send();
+}
+
+export async function updateStatus(req: Request, res: Response) {
+  const input = updateStatusSchema.parse(req.body);
+  const task = await lifecycleService.updateTaskStatus(req.user!, req.params.id, input.status);
+  res.json({ data: task });
 }

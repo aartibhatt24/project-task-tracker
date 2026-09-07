@@ -15,3 +15,4 @@ tasksRouter.post(
 tasksRouter.get('/tasks/:id', asyncHandler(taskController.getOne));
 tasksRouter.patch('/tasks/:id', requireRole('MANAGER'), asyncHandler(taskController.update));
 tasksRouter.delete('/tasks/:id', requireRole('MANAGER'), asyncHandler(taskController.remove));
+tasksRouter.post('/tasks/:id/status', asyncHandler(taskController.updateStatus));
