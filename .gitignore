@@ -5,8 +5,10 @@ build/
 .env
 .env.*
 !.env.example
+!.env.test
 *.log
 coverage/
+*.tsbuildinfo
 .DS_Store
 backend/prisma/dev.db
 backend/prisma/dev.db-journal
