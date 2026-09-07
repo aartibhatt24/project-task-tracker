@@ -1,4 +1,5 @@
 import { AuthenticatedUser } from '../middleware/auth';
+import { PRIORITY_RANK, Priority } from '../domain/constants';
 import { Errors } from '../utils/AppError';
 import { prisma } from '../utils/prisma';
 import { assertProjectAccessible } from './projectService';
@@ -35,6 +36,7 @@ export async function createTask(
         title: input.title,
         description: input.description ?? null,
         priority: input.priority,
+        priorityRank: PRIORITY_RANK[input.priority as Priority],
         dueDate: input.dueDate ?? null,
         status: 'BACKLOG',
         createdById: user.id,
@@ -85,7 +87,9 @@ export async function updateTask(user: AuthenticatedUser, taskId: string, input:
       data: {
         ...(input.title !== undefined ? { title: input.title } : {}),
         ...(input.description !== undefined ? { description: input.description } : {}),
-        ...(input.priority !== undefined ? { priority: input.priority } : {}),
+        ...(input.priority !== undefined
+          ? { priority: input.priority, priorityRank: PRIORITY_RANK[input.priority as Priority] }
+          : {}),
         ...(input.dueDate !== undefined ? { dueDate: input.dueDate } : {}),
       },
     });

@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import { testPrisma } from './testDb';
 
 export const TEST_PASSWORD = 'Password123!';
+const PRIORITY_RANK: Record<string, number> = { LOW: 0, MEDIUM: 1, HIGH: 2, URGENT: 3 };
 
 let counter = 0;
 function unique(prefix: string) {
@@ -53,6 +54,7 @@ export async function createTask(
       projectId,
       title: overrides.title ?? 'Test Task',
       priority: overrides.priority ?? 'MEDIUM',
+      priorityRank: PRIORITY_RANK[overrides.priority ?? 'MEDIUM'],
       status: overrides.status ?? 'BACKLOG',
       dueDate: overrides.dueDate ?? null,
       blockedFromStatus: overrides.blockedFromStatus ?? null,

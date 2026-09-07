@@ -194,6 +194,27 @@ independently but calls this same function per task).
 
 **Status**: Standing.
 
+## 14. Denormalized `priorityRank` column for correct priority sorting
+
+**Context**: `priority` is stored as a String (SQLite has no native enum — see decision in
+`docs/schema.md`). Sorting a String column alphabetically gives HIGH, LOW, MEDIUM, URGENT —
+not the severity order (LOW < MEDIUM < HIGH < URGENT) a "sort by priority" feature needs.
+
+**Options considered**: (a) a raw SQL `CASE WHEN priority = 'LOW' THEN 0 ...` expression via
+`$queryRaw` for the priority-sort path only, (b) fetch the filtered set unpaginated and sort
+in application code, (c) a denormalized integer `priorityRank` column kept in sync with
+`priority` on every create/update.
+
+**Decision**: Went with (c). It keeps every query — list, CSV export, future dashboard —
+on Prisma's ordinary parameterized fluent API (no hand-built SQL to audit for injection, no
+duplicate WHERE-building logic for one special case), and keeps pagination fully
+database-side, unlike (b) which would violate the "never load the full dataset" rule for
+that one sort option. `PRIORITY_RANK` in `domain/constants.ts` is the single source of the
+LOW=0..URGENT=3 mapping; `taskService.createTask`/`updateTask` set `priorityRank` any time
+`priority` is set, so the two columns can never drift.
+
+**Status**: Standing.
+
 ---
 
 _Reversals and later decisions are appended below as they genuinely happen during

@@ -2,6 +2,8 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
+const PRIORITY_RANK: Record<string, number> = { LOW: 0, MEDIUM: 1, HIGH: 2, URGENT: 3 };
+
 const prisma = new PrismaClient();
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -199,6 +201,7 @@ async function main() {
           title: `${title} (${project.key}-${ti + 1})`,
           description: `Task ${ti + 1} for ${project.name}. Auto-generated seed description covering realistic day-to-day work.`,
           priority,
+          priorityRank: PRIORITY_RANK[priority],
           status,
           dueDate: effectiveDueDate,
           blockedFromStatus,

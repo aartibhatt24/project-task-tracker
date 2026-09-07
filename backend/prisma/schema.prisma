@@ -74,6 +74,7 @@ model Task {
   title             String
   description       String?
   priority          String
+  priorityRank      Int
   dueDate           DateTime?
   status            String
   blockedFromStatus String?
@@ -94,6 +95,7 @@ model Task {
   @@index([status])
   @@index([dueDate])
   @@index([priority])
+  @@index([priorityRank])
   @@index([projectId, status])
 }
 

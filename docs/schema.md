@@ -41,6 +41,9 @@ change versus Postgres.
 - title
 - description (nullable)
 - priority: `LOW` | `MEDIUM` | `HIGH` | `URGENT`
+- priorityRank (Int, denormalized severity weight 0-3 kept in sync with `priority` on every
+  write — see `docs/decisions.md` #14; exists only so "sort by priority" reflects severity
+  order instead of the String column's alphabetical order)
 - dueDate (nullable DateTime)
 - status: `BACKLOG` | `IN_PROGRESS` | `IN_REVIEW` | `BLOCKED` | `DONE`
 - blockedFromStatus (nullable, same enum) — remembers the pre-block state

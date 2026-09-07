@@ -7,6 +7,7 @@ export const tasksRouter = Router();
 
 tasksRouter.use(requireAuth);
 
+tasksRouter.get('/tasks', asyncHandler(taskController.list));
 tasksRouter.post(
   '/projects/:projectId/tasks',
   requireRole('MANAGER'),
