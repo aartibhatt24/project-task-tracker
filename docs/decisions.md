@@ -128,6 +128,37 @@ the seed script against the corrected paths (`backend/prisma/dev.db`,
 
 **Status**: Standing (corrected).
 
+## 10. Managers see every project, regardless of their own membership
+
+**Context**: Section 1.1 says a manager can "view all projects/tasks within the manager's
+scope," which is ambiguous in a single-tenant app with only one manager-vs-member
+distinction (no team/org boundaries).
+
+**Decision**: A manager's "scope" is interpreted as the entire tracker — `listProjects` and
+`getProjectById` never filter by membership for a `MANAGER` caller, only by the `archived`
+flag. Membership still matters for managers in one place: task *assignment* eligibility,
+which always requires current project membership regardless of role (see
+`docs/schema.md`/dependencies). A manager who creates a project is auto-added as a member so
+they can assign themselves tasks without an extra step.
+
+**Status**: Standing.
+
+## 11. IDOR responses use 403, not 404, for authenticated users without access
+
+**Context**: Section 5 requires that a user "must not retrieve or mutate another project's
+tasks simply by changing an ID." Two common conventions exist: return 404 (hide existence)
+or 403 (confirm existence, deny access).
+
+**Decision**: Used 403 `FORBIDDEN` for an authenticated user who is not a member of a project
+they're trying to read/mutate, and reserved 404 for ids that don't exist at all. This keeps
+the authorization test matrix's status-code assertions unambiguous (403 always means "you're
+allowed to know this exists but not to touch it") and is consistent with how `requireRole`
+already returns 403. The tradeoff — a member can tell a given project id exists even when
+they can't see its contents — was accepted since project ids are opaque cuids, not
+sequential/guessable identifiers.
+
+**Status**: Standing.
+
 ---
 
 _Reversals and later decisions are appended below as they genuinely happen during

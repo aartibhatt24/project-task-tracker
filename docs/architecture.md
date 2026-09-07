@@ -39,9 +39,8 @@ backend/
     server.ts            # process entrypoint, calls app.listen
     routes/               # thin: parse params, call controller
     controllers/          # HTTP <-> service glue, no business rules
-    services/              # business rules (auth, projects, tasks, lifecycle, bulk, csv, dashboard, alerts)
+    services/              # business rules + Prisma queries (auth, projects, tasks, lifecycle, bulk, csv, dashboard, alerts)
     domain/                 # pure rule modules with no I/O (lifecycle transition table, dependency rules)
-    repositories/            # Prisma queries, isolated so services don't import PrismaClient directly everywhere
     middleware/               # auth, requireRole, error handler, async wrapper
     validators/                # zod schemas per resource
     utils/
