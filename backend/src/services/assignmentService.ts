@@ -1,3 +1,4 @@
+import { Prisma, PrismaClient, Task } from '@prisma/client';
 import { AuthenticatedUser } from '../middleware/auth';
 import { computeAssigneeDiff } from '../domain/assignment';
 import { Errors } from '../utils/AppError';
@@ -5,24 +6,24 @@ import { prisma } from '../utils/prisma';
 import { recordHistoryMany } from './historyService';
 import { assertTaskAccessible } from './taskService';
 
+type TxClient = PrismaClient | Prisma.TransactionClient;
+
 /**
- * Replaces a task's assignee set with `desiredUserIds`. Every id must be a current member
- * of the task's project (PROJECT_SPEC.md 1.6); the whole request is rejected atomically if
- * any id is not eligible, since this is a direct single-task operation (bulk assignment,
- * built later, evaluates each *task* independently but still applies this same rule per
- * task via this exact function).
+ * Core assignee-set logic shared by the single-task endpoint and bulk operations. Every id
+ * in `desiredUserIds` must currently be a member of the task's project or the whole change
+ * is rejected (see docs/decisions.md #13). Runs against whichever client/transaction is
+ * passed in.
  */
-export async function setTaskAssignees(
+export async function applyAssigneeChange(
+  tx: TxClient,
   actor: AuthenticatedUser,
-  taskId: string,
+  task: Task,
   desiredUserIds: string[],
 ) {
-  const task = await assertTaskAccessible(actor, taskId);
-
   const uniqueDesired = [...new Set(desiredUserIds)];
 
   if (uniqueDesired.length > 0) {
-    const members = await prisma.projectMember.findMany({
+    const members = await tx.projectMember.findMany({
       where: { projectId: task.projectId, userId: { in: uniqueDesired } },
       select: { userId: true },
     });
@@ -36,8 +37,8 @@ export async function setTaskAssignees(
     }
   }
 
-  const currentAssignees = await prisma.taskAssignee.findMany({
-    where: { taskId },
+  const currentAssignees = await tx.taskAssignee.findMany({
+    where: { taskId: task.id },
     select: { userId: true },
   });
   const { toAdd, toRemove } = computeAssigneeDiff(
@@ -45,33 +46,40 @@ export async function setTaskAssignees(
     uniqueDesired,
   );
 
-  await prisma.$transaction(async (tx) => {
-    if (toRemove.length > 0) {
-      await tx.taskAssignee.deleteMany({ where: { taskId, userId: { in: toRemove } } });
-    }
-    if (toAdd.length > 0) {
-      await tx.taskAssignee.createMany({
-        data: toAdd.map((userId) => ({ taskId, userId })),
-      });
-    }
-    await recordHistoryMany(tx, [
-      ...toAdd.map((userId) => ({
-        taskId,
-        actorId: actor.id,
-        type: 'ASSIGNED' as const,
-        newValue: userId,
-      })),
-      ...toRemove.map((userId) => ({
-        taskId,
-        actorId: actor.id,
-        type: 'UNASSIGNED' as const,
-        oldValue: userId,
-      })),
-    ]);
-  });
+  if (toRemove.length > 0) {
+    await tx.taskAssignee.deleteMany({ where: { taskId: task.id, userId: { in: toRemove } } });
+  }
+  if (toAdd.length > 0) {
+    await tx.taskAssignee.createMany({
+      data: toAdd.map((userId) => ({ taskId: task.id, userId })),
+    });
+  }
+  await recordHistoryMany(tx, [
+    ...toAdd.map((userId) => ({
+      taskId: task.id,
+      actorId: actor.id,
+      type: 'ASSIGNED' as const,
+      newValue: userId,
+    })),
+    ...toRemove.map((userId) => ({
+      taskId: task.id,
+      actorId: actor.id,
+      type: 'UNASSIGNED' as const,
+      oldValue: userId,
+    })),
+  ]);
 
-  return prisma.taskAssignee.findMany({
-    where: { taskId },
+  return tx.taskAssignee.findMany({
+    where: { taskId: task.id },
     include: { user: { select: { id: true, name: true, email: true, role: true } } },
   });
+}
+
+export async function setTaskAssignees(
+  actor: AuthenticatedUser,
+  taskId: string,
+  desiredUserIds: string[],
+) {
+  const task = await assertTaskAccessible(actor, taskId);
+  return prisma.$transaction((tx) => applyAssigneeChange(tx, actor, task, desiredUserIds));
 }

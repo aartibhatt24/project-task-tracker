@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import * as bulkController from '../controllers/bulkController';
 import * as taskController from '../controllers/taskController';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { asyncHandler } from '../middleware/errorHandler';
@@ -8,6 +9,7 @@ export const tasksRouter = Router();
 tasksRouter.use(requireAuth);
 
 tasksRouter.get('/tasks', asyncHandler(taskController.list));
+tasksRouter.post('/tasks/bulk', requireRole('MANAGER'), asyncHandler(bulkController.bulkUpdate));
 tasksRouter.post(
   '/projects/:projectId/tasks',
   requireRole('MANAGER'),

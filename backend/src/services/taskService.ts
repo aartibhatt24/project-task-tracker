@@ -1,3 +1,4 @@
+import { Prisma, PrismaClient, Task } from '@prisma/client';
 import { AuthenticatedUser } from '../middleware/auth';
 import { PRIORITY_RANK, Priority } from '../domain/constants';
 import { Errors } from '../utils/AppError';
@@ -5,6 +6,8 @@ import { prisma } from '../utils/prisma';
 import { assertProjectAccessible } from './projectService';
 import { recordHistory } from './historyService';
 import { CreateTaskInput, UpdateTaskInput } from '../validators/taskValidators';
+
+type TxClient = PrismaClient | Prisma.TransactionClient;
 
 const taskInclude = {
   assignees: { include: { user: { select: { id: true, name: true, email: true, role: true } } } },
@@ -65,48 +68,59 @@ function serializeForHistory(value: unknown): string | null {
   return String(value);
 }
 
-export async function updateTask(user: AuthenticatedUser, taskId: string, input: UpdateTaskInput) {
-  const task = await assertTaskAccessible(user, taskId);
-
-  return prisma.$transaction(async (tx) => {
-    const changes: { field: string; oldValue: unknown; newValue: unknown }[] = [];
-    for (const field of EDITABLE_FIELDS) {
-      if (field in input && input[field] !== undefined) {
-        const newValue = input[field];
-        const oldValue = (task as any)[field];
-        const oldComparable = oldValue instanceof Date ? oldValue.toISOString() : oldValue;
-        const newComparable = newValue instanceof Date ? newValue.toISOString() : newValue;
-        if (oldComparable !== newComparable) {
-          changes.push({ field, oldValue, newValue });
-        }
+/**
+ * Core field-edit logic (title/description/priority/dueDate) shared by the single-task
+ * endpoint and bulk due-date changes. Only changed fields produce FIELD_CHANGE history.
+ * Runs against whichever client/transaction is passed in.
+ */
+export async function applyTaskFieldUpdate(
+  tx: TxClient,
+  actor: AuthenticatedUser,
+  task: Task,
+  input: UpdateTaskInput,
+): Promise<Task> {
+  const changes: { field: string; oldValue: unknown; newValue: unknown }[] = [];
+  for (const field of EDITABLE_FIELDS) {
+    if (field in input && input[field] !== undefined) {
+      const newValue = input[field];
+      const oldValue = (task as any)[field];
+      const oldComparable = oldValue instanceof Date ? oldValue.toISOString() : oldValue;
+      const newComparable = newValue instanceof Date ? newValue.toISOString() : newValue;
+      if (oldComparable !== newComparable) {
+        changes.push({ field, oldValue, newValue });
       }
     }
+  }
 
-    const updated = await tx.task.update({
-      where: { id: taskId },
-      data: {
-        ...(input.title !== undefined ? { title: input.title } : {}),
-        ...(input.description !== undefined ? { description: input.description } : {}),
-        ...(input.priority !== undefined
-          ? { priority: input.priority, priorityRank: PRIORITY_RANK[input.priority as Priority] }
-          : {}),
-        ...(input.dueDate !== undefined ? { dueDate: input.dueDate } : {}),
-      },
-    });
-
-    for (const change of changes) {
-      await recordHistory(tx, {
-        taskId,
-        actorId: user.id,
-        type: 'FIELD_CHANGE',
-        field: change.field,
-        oldValue: serializeForHistory(change.oldValue),
-        newValue: serializeForHistory(change.newValue),
-      });
-    }
-
-    return updated;
+  const updated = await tx.task.update({
+    where: { id: task.id },
+    data: {
+      ...(input.title !== undefined ? { title: input.title } : {}),
+      ...(input.description !== undefined ? { description: input.description } : {}),
+      ...(input.priority !== undefined
+        ? { priority: input.priority, priorityRank: PRIORITY_RANK[input.priority as Priority] }
+        : {}),
+      ...(input.dueDate !== undefined ? { dueDate: input.dueDate } : {}),
+    },
   });
+
+  for (const change of changes) {
+    await recordHistory(tx, {
+      taskId: task.id,
+      actorId: actor.id,
+      type: 'FIELD_CHANGE',
+      field: change.field,
+      oldValue: serializeForHistory(change.oldValue),
+      newValue: serializeForHistory(change.newValue),
+    });
+  }
+
+  return updated;
+}
+
+export async function updateTask(user: AuthenticatedUser, taskId: string, input: UpdateTaskInput) {
+  const task = await assertTaskAccessible(user, taskId);
+  return prisma.$transaction((tx) => applyTaskFieldUpdate(tx, user, task, input));
 }
 
 export async function deleteTask(user: AuthenticatedUser, taskId: string) {
