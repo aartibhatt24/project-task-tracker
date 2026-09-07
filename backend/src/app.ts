@@ -4,6 +4,7 @@ import express from 'express';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { alertsRouter } from './routes/alerts';
 import { authRouter } from './routes/auth';
+import { dashboardRouter } from './routes/dashboard';
 import { healthRouter } from './routes/health';
 import { projectsRouter } from './routes/projects';
 import { tasksRouter } from './routes/tasks';
@@ -28,6 +29,7 @@ export function createApp() {
   app.use('/api', projectsRouter);
   app.use('/api', tasksRouter);
   app.use('/api', alertsRouter);
+  app.use('/api', dashboardRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
