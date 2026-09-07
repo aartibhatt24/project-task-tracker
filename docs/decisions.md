@@ -176,6 +176,24 @@ phase) and comments will not.
 
 **Status**: Standing.
 
+## 13. `POST /tasks/:id/assignees` replaces the whole assignee set (assign and unassign in one endpoint)
+
+**Context**: PROJECT_SPEC.md's API contract (section 4) lists only one assignee endpoint —
+`POST /api/tasks/:id/assignees` — with no corresponding DELETE. But the spec also requires
+unassignment to be possible and to produce UNASSIGNED history (sections 1.6, 1.11).
+
+**Decision**: The endpoint takes `{ userIds: string[] }`, the complete desired assignee set,
+and diffs it against the task's current assignees (`domain/assignment.ts:
+computeAssigneeDiff`). Added ids get a TaskAssignee row + ASSIGNED history; removed ids get
+their row deleted + UNASSIGNED history. This satisfies the literal API surface in the spec
+(one route) while still covering assign and unassign, and gives the frontend a simple
+"send the checked set" interaction instead of separate add/remove calls. Every id in the
+desired set must currently be a project member or the whole request is rejected — this is a
+direct single-task write, so it's atomic by nature (unlike bulk, which evaluates each task
+independently but calls this same function per task).
+
+**Status**: Standing.
+
 ---
 
 _Reversals and later decisions are appended below as they genuinely happen during
