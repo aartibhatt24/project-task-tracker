@@ -1,0 +1,155 @@
+// Prisma schema for the Project & Task Tracker.
+//
+// Provider is sqlite (see docs/architecture.md and docs/decisions.md for why: this build
+// environment has no admin rights, Docker, or WSL to run PostgreSQL). SQLite's Prisma
+// connector does not support native `enum` types, so all "enum" fields below are modeled
+// as String columns whose allowed values are enforced at the application layer by Zod
+// schemas in backend/src/validators — every write path validates against the same set of
+// allowed literals a Postgres enum would have enforced at the DB layer.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Role: "MANAGER" | "MEMBER"
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  ownedProjects    Project[]       @relation("ProjectOwner")
+  memberships      ProjectMember[]
+  createdTasks     Task[]          @relation("TaskCreatedBy")
+  taskAssignments  TaskAssignee[]
+  historyEntries   TaskHistory[]
+  alertDismissals  AlertDismissal[]
+
+  @@index([role])
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  name        String
+  description String?
+  ownerId     String
+  archived    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner   User            @relation("ProjectOwner", fields: [ownerId], references: [id])
+  members ProjectMember[]
+  tasks   Task[]
+
+  @@index([archived])
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  projectId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([userId])
+}
+
+// Priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT"
+// Status: "BACKLOG" | "IN_PROGRESS" | "IN_REVIEW" | "BLOCKED" | "DONE"
+model Task {
+  id                String    @id @default(cuid())
+  projectId         String
+  title             String
+  description       String?
+  priority          String
+  dueDate           DateTime?
+  status            String
+  blockedFromStatus String?
+  createdById       String
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy User    @relation("TaskCreatedBy", fields: [createdById], references: [id])
+
+  assignees        TaskAssignee[]
+  history          TaskHistory[]
+  alertDismissals  AlertDismissal[]
+  blockerLinks     TaskDependency[] @relation("BlockedTask")
+  blockingLinks    TaskDependency[] @relation("BlockerTask")
+
+  @@index([projectId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([priority])
+  @@index([projectId, status])
+}
+
+model TaskAssignee {
+  id        String   @id @default(cuid())
+  taskId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, userId])
+  @@index([userId])
+}
+
+model TaskDependency {
+  id            String   @id @default(cuid())
+  blockerTaskId String
+  blockedTaskId String
+  createdAt     DateTime @default(now())
+
+  blockerTask Task @relation("BlockerTask", fields: [blockerTaskId], references: [id], onDelete: Cascade)
+  blockedTask Task @relation("BlockedTask", fields: [blockedTaskId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerTaskId, blockedTaskId])
+  @@index([blockedTaskId])
+}
+
+// type: "CREATED" | "FIELD_CHANGE" | "STATUS_CHANGE" | "ASSIGNED" | "UNASSIGNED" | "COMMENT"
+model TaskHistory {
+  id        String   @id @default(cuid())
+  taskId    String
+  actorId   String
+  type      String
+  field     String?
+  oldValue  String?
+  newValue  String?
+  metadata  String?
+  createdAt DateTime @default(now())
+
+  task  Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  actor User @relation(fields: [actorId], references: [id])
+
+  @@index([taskId, createdAt])
+}
+
+model AlertDismissal {
+  id                String    @id @default(cuid())
+  taskId            String
+  userId            String
+  dismissedDueDate  DateTime?
+  createdAt         DateTime  @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, userId])
+}

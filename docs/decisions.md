@@ -85,6 +85,49 @@ either both commit or neither does.
 
 **Status**: Standing.
 
+## 7. Password hashing: bcryptjs instead of argon2
+
+**Context**: Spec section 5 says "Argon2 or bcrypt." The real `argon2` npm package is a
+native addon that needs to compile via node-gyp at install time, which needs a C/C++ build
+toolchain (Visual Studio Build Tools on Windows). This environment has no admin rights and
+no build tools installed alongside the portable Node.js runtime.
+
+**Decision**: Used `bcryptjs`, a pure-JS bcrypt implementation with no native compilation
+step, so `npm install` stays reliable in this constrained environment. Same hashing
+guarantee (salted, slow, industry-standard) the spec asks for; the spec explicitly allows
+either algorithm.
+
+**Status**: Standing.
+
+## 8. `Task.updatedAt` doubles as the completion timestamp for DONE tasks
+
+**Context**: The dashboard needs "completed this week" and an 8-week completion trend
+(section 1.10), but the schema in section 3 of the spec has no separate `completedAt` field.
+
+**Decision**: Rather than add a column the spec didn't ask for, completion time is read from
+`updatedAt` on tasks whose `status` is `DONE`. This is accurate because the domain layer's
+lifecycle rules mean a task's `updatedAt` only changes again after reaching DONE if it
+leaves DONE (reopen to `IN_REVIEW`), at which point it's correctly no longer counted as a
+current completion. Documented here so it's not mistaken for a bug if `updatedAt` is
+expected to mean "last touched" in a more general sense.
+
+**Status**: Standing.
+
+## 9. Reversal: `DATABASE_URL` path for SQLite
+
+**Context**: Originally set `DATABASE_URL="file:./prisma/dev.db"` in `.env`, assuming the
+path was relative to the backend package root (where `.env` lives). Running the first
+migration instead created `backend/prisma/prisma/dev.db` — Prisma resolves a SQLite `file:`
+URL relative to the directory containing `schema.prisma` (`backend/prisma/`), not the cwd or
+`.env`'s location, so the `./prisma/` segment doubled up.
+
+**Reversal**: Changed `DATABASE_URL` to `file:./dev.db` in `.env`, `.env.example`, and
+`.env.test`, deleted the accidental nested directory, and re-ran `prisma migrate deploy` +
+the seed script against the corrected paths (`backend/prisma/dev.db`,
+`backend/prisma/test.db`). Verified via the same integration test suite before continuing.
+
+**Status**: Standing (corrected).
+
 ---
 
 _Reversals and later decisions are appended below as they genuinely happen during

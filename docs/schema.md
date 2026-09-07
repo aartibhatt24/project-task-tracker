@@ -1,9 +1,13 @@
 # Database schema
 
 Implemented in `backend/prisma/schema.prisma`, provider `sqlite` (see `docs/architecture.md`
-and `docs/decisions.md` for why). Enums are modeled as Prisma `enum` (compiled to `TEXT` with
-app-level validation under SQLite, same as Prisma does under Postgres for the values that
-matter — Zod validates every enum-bearing input regardless).
+and `docs/decisions.md` for why). Prisma's SQLite connector does not support native `enum`
+types (unlike its PostgreSQL connector), so every "enum" field below (`role`, `priority`,
+`status`, `blockedFromStatus`, `TaskHistory.type`) is a `String` column whose allowed values
+are enforced by Zod schemas in `backend/src/validators` on every write path, and by the
+domain/service layer for values computed server-side (e.g. lifecycle transitions). This is
+the one place SQLite required a real modeling change rather than just a `datasource` line
+change versus Postgres.
 
 ## Entities
 
