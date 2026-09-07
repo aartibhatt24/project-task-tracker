@@ -15,6 +15,8 @@ tasksRouter.post(
   requireRole('MANAGER'),
   asyncHandler(taskController.create),
 );
+// Must be registered before '/tasks/:id' — otherwise "export.csv" would be captured as :id.
+tasksRouter.get('/tasks/export.csv', asyncHandler(taskController.exportCsv));
 tasksRouter.get('/tasks/:id', asyncHandler(taskController.getOne));
 tasksRouter.patch('/tasks/:id', requireRole('MANAGER'), asyncHandler(taskController.update));
 tasksRouter.delete('/tasks/:id', requireRole('MANAGER'), asyncHandler(taskController.remove));

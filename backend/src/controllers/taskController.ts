@@ -3,6 +3,7 @@ import * as assignmentService from '../services/assignmentService';
 import * as dependencyService from '../services/dependencyService';
 import * as lifecycleService from '../services/lifecycleService';
 import * as taskService from '../services/taskService';
+import { generateTaskCsv } from '../services/csvExportService';
 import { listTasksPaged } from '../services/taskQueryService';
 import { setAssigneesSchema } from '../validators/assignmentValidators';
 import { addDependencySchema } from '../validators/dependencyValidators';
@@ -14,6 +15,14 @@ export async function list(req: Request, res: Response) {
   const query = taskQuerySchema.parse(req.query);
   const result = await listTasksPaged(req.user!, query);
   res.json(result);
+}
+
+export async function exportCsv(req: Request, res: Response) {
+  const query = taskQuerySchema.parse(req.query);
+  const csv = await generateTaskCsv(req.user!, query, query.sortBy, query.sortOrder);
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="tasks.csv"');
+  res.send(csv);
 }
 
 export async function create(req: Request, res: Response) {
