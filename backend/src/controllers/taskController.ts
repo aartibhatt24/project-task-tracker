@@ -3,9 +3,11 @@ import * as assignmentService from '../services/assignmentService';
 import * as dependencyService from '../services/dependencyService';
 import * as lifecycleService from '../services/lifecycleService';
 import * as taskService from '../services/taskService';
+import * as historyService from '../services/historyService';
 import { generateTaskCsv } from '../services/csvExportService';
 import { listTasksPaged } from '../services/taskQueryService';
 import { setAssigneesSchema } from '../validators/assignmentValidators';
+import { addCommentSchema } from '../validators/commentValidators';
 import { addDependencySchema } from '../validators/dependencyValidators';
 import { taskQuerySchema } from '../validators/taskQueryValidators';
 import { createTaskSchema, updateTaskSchema } from '../validators/taskValidators';
@@ -76,4 +78,15 @@ export async function addDependency(req: Request, res: Response) {
 export async function listDependencies(req: Request, res: Response) {
   const dependencies = await dependencyService.listDependencies(req.user!, req.params.id);
   res.json({ data: dependencies });
+}
+
+export async function getHistory(req: Request, res: Response) {
+  const history = await historyService.listTaskHistory(req.user!, req.params.id);
+  res.json({ data: history });
+}
+
+export async function addComment(req: Request, res: Response) {
+  const input = addCommentSchema.parse(req.body);
+  const comment = await historyService.addComment(req.user!, req.params.id, input.text);
+  res.status(201).json({ data: comment });
 }

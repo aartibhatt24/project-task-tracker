@@ -32,3 +32,5 @@ tasksRouter.post(
   asyncHandler(taskController.addDependency),
 );
 tasksRouter.get('/tasks/:id/dependencies', asyncHandler(taskController.listDependencies));
+tasksRouter.get('/tasks/:id/history', asyncHandler(taskController.getHistory));
+tasksRouter.post('/tasks/:id/comments', asyncHandler(taskController.addComment));
