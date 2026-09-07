@@ -2,6 +2,7 @@ import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express from 'express';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import { alertsRouter } from './routes/alerts';
 import { authRouter } from './routes/auth';
 import { healthRouter } from './routes/health';
 import { projectsRouter } from './routes/projects';
@@ -26,6 +27,7 @@ export function createApp() {
   app.use('/api', usersRouter);
   app.use('/api', projectsRouter);
   app.use('/api', tasksRouter);
+  app.use('/api', alertsRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
