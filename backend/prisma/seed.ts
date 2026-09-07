@@ -78,8 +78,20 @@ const COMMENTS = [
   'Deployed to staging, please verify.',
 ];
 
+async function resetDatabase() {
+  await prisma.alertDismissal.deleteMany();
+  await prisma.taskHistory.deleteMany();
+  await prisma.taskDependency.deleteMany();
+  await prisma.taskAssignee.deleteMany();
+  await prisma.task.deleteMany();
+  await prisma.projectMember.deleteMany();
+  await prisma.project.deleteMany();
+  await prisma.user.deleteMany();
+}
+
 async function main() {
   console.log('Seeding database...');
+  await resetDatabase();
 
   const password = await hash('Password123!');
 

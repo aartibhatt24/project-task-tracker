@@ -159,6 +159,23 @@ sequential/guessable identifiers.
 
 **Status**: Standing.
 
+## 12. Task creation, field edits, and deletion are manager-only; status transitions will be open to members
+
+**Context**: Section 1.1 lists task creation, editing, and deletion explicitly under
+"Manager can," and explicitly lists deletion under "Member cannot." It never explicitly says
+members *can* create or field-edit tasks — the member capability list only says "view and
+update tasks in projects they belong to."
+
+**Decision**: Read "update" narrowly for members: it covers the actions a working member
+takes day-to-day — moving a task through its lifecycle (status transitions, built in the
+next phase) and commenting — not structural edits (title/description/priority/due date) or
+creation/deletion, which stay manager-only alongside assignment management (also explicitly
+manager-only per section 1.1). `POST /projects/:projectId/tasks`, `PATCH /tasks/:id`, and
+`DELETE /tasks/:id` all require `requireRole('MANAGER')`; `POST /tasks/:id/status` (lifecycle
+phase) and comments will not.
+
+**Status**: Standing.
+
 ---
 
 _Reversals and later decisions are appended below as they genuinely happen during
