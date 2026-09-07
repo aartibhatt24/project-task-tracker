@@ -1,36 +1,36 @@
-import { useEffect, useState } from 'react';
-import { apiClient } from './lib/apiClient';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from 'react-hot-toast';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { ProtectedRoute } from './components/ProtectedRoute';
+import { AuthProvider } from './hooks/useAuth';
+import LoginPage from './pages/LoginPage';
+import PlaceholderHomePage from './pages/PlaceholderHomePage';
+
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
+});
 
 function App() {
-  const [status, setStatus] = useState<'checking' | 'ok' | 'error'>('checking');
-
-  useEffect(() => {
-    apiClient
-      .get('/health')
-      .then(() => setStatus('ok'))
-      .catch(() => setStatus('error'));
-  }, []);
-
   return (
-    <div className="flex min-h-screen items-center justify-center">
-      <div className="text-center">
-        <h1 className="text-2xl font-semibold text-slate-800">Project &amp; Task Tracker</h1>
-        <p className="mt-2 text-sm text-slate-500">
-          API status:{' '}
-          <span
-            className={
-              status === 'ok'
-                ? 'text-green-600'
-                : status === 'error'
-                  ? 'text-red-600'
-                  : 'text-slate-400'
-            }
-          >
-            {status}
-          </span>
-        </p>
-      </div>
-    </div>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <AuthProvider>
+          <Toaster position="top-right" />
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <PlaceholderHomePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </AuthProvider>
+      </BrowserRouter>
+    </QueryClientProvider>
   );
 }
 
