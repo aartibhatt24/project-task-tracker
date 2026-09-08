@@ -1,5 +1,11 @@
 # Implementation plan
 
+**Status: all 21 phases below were completed and verified.** Final state: 156 backend
+tests (Vitest + Supertest against a real SQLite database), 4 frontend tests (React Testing
+Library), a full nine-page frontend verified with a real headless-Chromium walkthrough
+(Playwright), both production builds passing, and the final requirement audit in
+`docs/final-audit.md` showing all ten mandatory goals DONE.
+
 ## Phases (executed in this order, each verified before moving on)
 
 1. Docs skeleton (this phase) — architecture, schema, plan, decisions.
