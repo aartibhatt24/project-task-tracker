@@ -1,6 +1,7 @@
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express from 'express';
+import helmet from 'helmet';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { alertsRouter } from './routes/alerts';
 import { authRouter } from './routes/auth';
@@ -14,6 +15,10 @@ import { env } from './utils/env';
 export function createApp() {
   const app = express();
 
+  // API-only server: no HTML is ever served, so it's safe to disable CSP here (it would
+  // otherwise default to a policy meant for HTML responses) while keeping helmet's other
+  // headers (X-Content-Type-Options, X-Frame-Options, etc.).
+  app.use(helmet({ contentSecurityPolicy: false }));
   app.use(
     cors({
       origin: env.corsOrigin,

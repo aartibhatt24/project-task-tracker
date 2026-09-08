@@ -17,11 +17,20 @@ const CSV_HEADERS = [
   'updatedAt',
 ];
 
+// Task titles/descriptions are free text a manager controls but that other managers will
+// open in Excel/Sheets. A leading =, +, -, or @ is interpreted as a formula by most
+// spreadsheet apps ("CSV/formula injection") — prefixing with a tab neutralizes that
+// without changing how the value displays or how it's parsed as a CSV field.
+function neutralizeFormulaInjection(value: string): string {
+  return /^[=+\-@]/.test(value) ? `\t${value}` : value;
+}
+
 function escapeCsvField(value: string): string {
-  if (/[",\n\r]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`;
+  const safe = neutralizeFormulaInjection(value);
+  if (/[",\n\r]/.test(safe)) {
+    return `"${safe.replace(/"/g, '""')}"`;
   }
-  return value;
+  return safe;
 }
 
 function toRow(fields: string[]): string {

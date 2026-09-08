@@ -145,6 +145,21 @@ describe('CSV export', () => {
     expect(res.text).toContain('"Title, with ""quotes"" and comma"');
   });
 
+  it('neutralizes formula-injection-style leading characters (CSV/formula injection)', async () => {
+    const { managerCookie, visibleProject: p, manager } = await setup();
+    await createTask(p.id, manager.id, { title: '=1+1' });
+    await createTask(p.id, manager.id, { title: '+cmd|calc' });
+    await createTask(p.id, manager.id, { title: '@SUM(A1)' });
+    await createTask(p.id, manager.id, { title: 'Safe title' });
+
+    const res = await request(app).get('/api/tasks/export.csv').set('Cookie', managerCookie);
+    expect(res.text).toContain('\t=1+1');
+    expect(res.text).toContain('\t+cmd|calc');
+    expect(res.text).toContain('\t@SUM(A1)');
+    expect(res.text).toContain('Safe title');
+    expect(res.text).not.toMatch(/[,\r\n]=1\+1/); // must not appear unescaped/unprefixed
+  });
+
   it('rejects unauthenticated export requests', async () => {
     const res = await request(app).get('/api/tasks/export.csv');
     expect(res.status).toBe(401);
