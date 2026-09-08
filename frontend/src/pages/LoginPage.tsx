@@ -1,5 +1,5 @@
 import { FormEvent, useState } from 'react';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
 import { getApiErrorMessage } from '../lib/apiClient';
@@ -7,15 +7,15 @@ import { getApiErrorMessage } from '../lib/apiClient';
 export default function LoginPage() {
   const { login, status } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Always lands on the dashboard, deliberately — see ProtectedRoute for why this app
+  // doesn't try to resume whatever page a previous session was on.
   if (status === 'authenticated') {
-    const from = (location.state as { from?: string } | null)?.from ?? '/';
-    return <Navigate to={from} replace />;
+    return <Navigate to="/" replace />;
   }
 
   async function handleSubmit(e: FormEvent) {

@@ -215,6 +215,36 @@ LOW=0..URGENT=3 mapping; `taskService.createTask`/`updateTask` set `priorityRank
 
 **Status**: Standing.
 
+## 15. Reversal: dropped "return to the page you were on" after login
+
+**Context**: `ProtectedRoute` initially redirected an unauthenticated visitor to `/login`
+with `state: { from: location.pathname }`, and `LoginPage` read that `from` to send the user
+back where they came from after signing in — a common, reasonable pattern. It was also
+wired to both a declarative `<Navigate to={from} />` (fired on re-render once `status`
+became `'authenticated'`) and an imperative `navigate('/', ...)` inside `handleSubmit`,
+which is what actually broke: those two could target different routes and race.
+
+**How it was found**: a full browser walkthrough with Playwright (manager login -> browse
+dashboard/projects/task detail/all tasks/alerts -> sign out -> sign back in as a member)
+caught it directly — after signing out from the Alerts page and logging in as a different
+user, the app landed back on `/alerts` instead of the dashboard, and in one run the two
+competing navigations produced an inconsistent result. This is exactly the kind of defect
+`npm run typecheck`/lint/unit tests cannot catch, since nothing about it is a type error or
+a unit-testable pure function — it only shows up by actually clicking through the app.
+
+**First fix attempt**: made both navigations agree on the same `from` target instead of
+racing for different ones. This resolved the race but exposed the deeper issue: on a
+shared/demo browser, "sign out, then a different person signs in" is the common case here
+(manager and member demo accounts on the same machine), and resuming the *previous* user's
+last page is confusing, not helpful.
+
+**Reversal**: removed the `from`-preservation feature entirely. `ProtectedRoute` now always
+redirects to a bare `/login` (no state), and `LoginPage` always navigates to `/` after a
+successful sign-in. Simpler, fully deterministic, and correct for this app's actual usage
+pattern.
+
+**Status**: Standing.
+
 ---
 
 _Reversals and later decisions are appended below as they genuinely happen during

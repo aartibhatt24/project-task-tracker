@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Role } from '../types/auth';
 
@@ -11,7 +11,6 @@ export function ProtectedRoute({
   roles?: Role[];
 }) {
   const { status, user } = useAuth();
-  const location = useLocation();
 
   if (status === 'loading') {
     return (
@@ -21,8 +20,13 @@ export function ProtectedRoute({
     );
   }
 
+  // Deliberately does not preserve "return to the page you were on" via location state:
+  // this app is commonly used from a shared browser where one user signs out and a
+  // different one signs in, so always landing on the dashboard after login is the more
+  // predictable behavior than resuming whatever page the previous session happened to be
+  // on. It also avoids a real race this app used to have — see docs/decisions.md.
   if (status === 'unauthenticated' || !user) {
-    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+    return <Navigate to="/login" replace />;
   }
 
   if (roles && !roles.includes(user.role)) {
