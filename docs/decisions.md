@@ -245,6 +245,42 @@ pattern.
 
 **Status**: Standing.
 
+## 16. Fixed: production build entrypoint mismatch
+
+**Context**: During the production-readiness pass, `npm run build` (`tsc -p tsconfig.json`,
+`rootDir: "."`, including `src`, `prisma`, and `tests`) compiled everything into `dist/`
+mirroring the full backend directory tree, so the server entrypoint landed at
+`dist/src/server.js` — but `package.json`'s `start` script ran `node dist/server.js`, which
+does not exist. `npm start` would have failed outright in any real deployment.
+
+**Fix**: added `tsconfig.build.json` (extends the base config, `rootDir: "src"`,
+`include: ["src"]` only) and pointed the `build` script at it. The production build now
+compiles only application code — not tests or the seed script — directly into `dist/`, so
+`dist/server.js` exists where `npm start` expects it. Verified by actually running
+`npm run build && npm start` and hitting `/api/health`, not just checking the compiler exits
+0.
+
+**Status**: Standing.
+
+## 17. Configurable cookie `SameSite` policy for cross-domain deployment
+
+**Context**: The session cookie was hardcoded to `sameSite: 'lax'`. That works in this dev
+environment (and in this monorepo's likely deployment target) because SameSite is a
+same-*site* check based on registrable domain, and `localhost:5173`/`localhost:4000` count
+as the same site regardless of port. It would silently break authentication if the frontend
+and backend are ever deployed on genuinely different registrable domains (e.g. a Vercel
+frontend and a separate Render/Railway API domain) — cross-site fetch/XHR requests don't
+send `SameSite=Lax` cookies at all, so every authenticated request would 401 with no
+obvious cause.
+
+**Decision**: Added `COOKIE_SAME_SITE` (`lax` | `strict` | `none`) to backend env config.
+Setting it to `none` automatically forces `secure: true` on the cookie (required by browsers
+for `SameSite=None`, which in turn requires HTTPS on both ends). Documented in
+`backend/.env.example` and `README.md`'s deployment section. Default stays `lax`, so nothing
+changes for same-site setups.
+
+**Status**: Standing.
+
 ---
 
 _Reversals and later decisions are appended below as they genuinely happen during
