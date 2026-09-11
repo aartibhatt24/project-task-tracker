@@ -5,29 +5,51 @@ with a validated lifecycle, dependencies, multi-assignee support, immutable hist
 comments, server-side search/filter/sort/pagination, bulk operations, CSV export, overdue
 alerts, and dashboard analytics.
 
+## Live deployment
+
+| | |
+|---|---|
+| **App** | **https://project-task-tracker-sage.vercel.app** |
+| **API** | https://project-task-tracker-xeim.onrender.com |
+| **Repo** | https://github.com/aartibhatt24/project-task-tracker |
+
+Demo accounts (password `Password123!` for all):
+
+| Role | Email |
+|---|---|
+| Manager | `manager@example.com` |
+| Member | `member1@example.com` (also `member2` … `member7`) |
+
+> The API runs on Render's free tier, which spins the service down after 15 minutes of no
+> traffic. If the app has been idle, the *first* request can take 30-60 seconds while it
+> wakes back up — that's expected, not a bug.
+
 Built end to end against `PROJECT_SPEC.md`. See `docs/` for architecture, schema, the
-implementation plan, engineering decisions (including a couple of genuine reversals), the
-real AI prompts used during development, and the final requirement audit.
+implementation plan, engineering decisions (including several genuine reversals), the real
+AI prompts used during development, and the final requirement audit.
 
 ## Stack
 
-- **Frontend**: React + TypeScript + Vite + Tailwind CSS + React Router + TanStack Query + Recharts
-- **Backend**: Node.js + Express + TypeScript
-- **Database**: SQLite via Prisma ORM
+- **Frontend**: React + TypeScript + Vite + Tailwind CSS + React Router + TanStack Query + Recharts — deployed on **Vercel**
+- **Backend**: Node.js + Express + TypeScript — deployed on **Render**
+- **Database**: PostgreSQL via Prisma ORM — hosted free on **Neon**
 - **Validation**: Zod (every request body/query/param)
-- **Tests**: Vitest + Supertest (backend, 155 tests against a real database) + React Testing Library (frontend)
+- **Tests**: Vitest + Supertest (backend, 156 tests against a real database) + React Testing Library (frontend)
 
-**Why SQLite instead of the spec's recommended PostgreSQL:** this was built in an
+**Why Neon Postgres instead of a locally-installed PostgreSQL:** this was built in an
 environment with no admin rights, no Docker, and no WSL — there was no way to install or run
-a PostgreSQL server. The user was asked directly and chose SQLite via Prisma as the
-pragmatic substitute; it's the same ORM, same schema/migration workflow, and every
-aggregation/filter/pagination query still happens at the database layer. Full reasoning in
-`docs/decisions.md` #1.
+a *local* PostgreSQL server. SQLite was used as a stopgap during initial development
+(`docs/decisions.md` #1), then the project switched to a real, hosted PostgreSQL (Neon) once
+a live deployment was needed — a hosted database needs no local install at all, which
+resolved the original constraint directly rather than working around it a second time. Full
+reasoning in `docs/decisions.md` #1 and #18.
 
 ## Prerequisites
 
 - Node.js 20+ (developed and tested against Node 22.14.0 / npm 10.9.2)
-- No external database server required — SQLite is a local file.
+- A PostgreSQL database reachable over the network. A free one at
+  [neon.tech](https://neon.tech) takes about two minutes to set up and needs no local
+  install — that's what this project itself uses in both development and production.
 
 ## Setup (fresh clone)
 
@@ -35,8 +57,8 @@ aggregation/filter/pagination query still happens at the database layer. Full re
 # Backend
 cd backend
 npm install
-cp .env.example .env          # defaults work as-is for local dev
-npm run prisma:migrate        # creates backend/prisma/dev.db and applies migrations
+cp .env.example .env          # then set DATABASE_URL to your own Postgres connection string
+npm run prisma:migrate        # applies migrations to your database
 npm run seed                  # seeds realistic demo data (idempotent — safe to rerun)
 npm run dev                   # http://localhost:4000
 
@@ -76,8 +98,8 @@ data immediately.
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint |
 | `npm run format` / `format:check` | Prettier |
-| `npm test` | Vitest (155 tests, integration + unit) |
-| `npm run prisma:migrate` | Apply/create migrations against `dev.db` |
+| `npm test` | Vitest (156 tests, integration + unit — needs `DATABASE_URL` to point at a real reachable Postgres database; see `backend/.env.test`) |
+| `npm run prisma:migrate` | Apply/create migrations against your database |
 | `npm run prisma:deploy` | Apply existing migrations without prompting (CI/production) |
 | `npm run seed` | Reset and reseed demo data |
 
@@ -96,14 +118,34 @@ data immediately.
 See `backend/.env.example` and `frontend/.env.example` for the full, commented list. The
 backend ones that matter for a real deployment:
 
-- `DATABASE_URL` — SQLite file path (relative to `backend/prisma/`, see the comment in
-  `.env.example` — Prisma resolves it relative to `schema.prisma`'s directory, not the cwd)
+- `DATABASE_URL` — PostgreSQL connection string (a free [Neon](https://neon.tech) database
+  works well; use the plain, non-pooled connection string from its dashboard)
 - `JWT_SECRET` — must be a long random string in production
-- `CORS_ORIGIN` — the frontend's origin
-- `COOKIE_SAME_SITE` — `lax` (default, for same-site deployments) or `none` (cross-domain
-  frontend/API deployments — automatically forces `secure: true`, so both sides need HTTPS)
+- `CORS_ORIGIN` — the frontend's origin (e.g. your Vercel URL)
+- `COOKIE_SAME_SITE` — `lax` (default, for same-site deployments) or `none` (needed when the
+  frontend and API are on different domains, as in this project's own Vercel + Render setup —
+  automatically forces `secure: true`, so both sides must be served over HTTPS)
 
-The frontend has one: `VITE_API_URL`, baked in at build time.
+The frontend has one: `VITE_API_URL`, baked in at build time (set to the deployed API's
+`/api` path on Vercel).
+
+## Deploying your own copy
+
+This is exactly how the live deployment above was set up, using only free tiers with no
+credit card required:
+
+1. **Database** — create a free project at [neon.tech](https://neon.tech), copy its
+   connection string into `DATABASE_URL`.
+2. **Backend** — on [render.com](https://render.com), create a **Web Service** from this
+   repo with root directory `backend`, build command
+   `npm install --include=dev && npm run build && npx prisma migrate deploy`, start command
+   `npm start`, and the environment variables listed above (`NODE_ENV=production`,
+   `COOKIE_SAME_SITE=none`). The `--include=dev` flag matters: Render sets `NODE_ENV` during
+   the build step too, and plain `npm install` skips devDependencies (including TypeScript
+   itself) whenever `NODE_ENV=production` is set.
+3. **Frontend** — on [vercel.com](https://vercel.com), import this repo with root directory
+   `frontend` and set `VITE_API_URL` to your Render URL + `/api`.
+4. Update the backend's `CORS_ORIGIN` to your real Vercel URL once you have it, and redeploy.
 
 ## Project structure
 
@@ -120,7 +162,7 @@ backend/
     schema.prisma
     seed.ts
   tests/
-    integration/    Supertest against a real SQLite test database
+    integration/    Supertest against a real Postgres test database
     unit/           domain-only, no I/O
 
 frontend/
@@ -150,7 +192,9 @@ docs/
 Every implementation phase in this project's git history was verified before moving on:
 typecheck, lint, the phase's automated tests, and a direct HTTP smoke test against the
 running dev server with real seeded data (not just "the tests pass"). The full frontend was
-also driven end to end with a real headless-Chromium browser (Playwright) — see
-`docs/decisions.md` #15 for a real bug that browser testing caught and unit/typecheck could
-not have. See `docs/plan.md` for the phase-by-phase breakdown and `docs/interview-notes.md`
-for a grounded walkthrough of where each business rule actually lives in the code.
+also driven end to end with a real headless-Chromium browser (Playwright) — both locally
+during development and again against the actual live deployment above, which caught a real
+TypeScript build-config bug and a Render devDependencies gotcha that only showed up once
+deployed. See `docs/decisions.md` for the full list of real issues found and fixed this way,
+`docs/plan.md` for the phase-by-phase breakdown, and `docs/interview-notes.md` for a
+grounded walkthrough of where each business rule actually lives in the code.
