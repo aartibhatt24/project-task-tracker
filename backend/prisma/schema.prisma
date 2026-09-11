@@ -1,18 +1,19 @@
 // Prisma schema for the Project & Task Tracker.
 //
-// Provider is sqlite (see docs/architecture.md and docs/decisions.md for why: this build
-// environment has no admin rights, Docker, or WSL to run PostgreSQL). SQLite's Prisma
-// connector does not support native `enum` types, so all "enum" fields below are modeled
-// as String columns whose allowed values are enforced at the application layer by Zod
-// schemas in backend/src/validators — every write path validates against the same set of
-// allowed literals a Postgres enum would have enforced at the DB layer.
+// Provider is postgresql, via a free hosted Neon database (see docs/decisions.md #18).
+// Local development originally used SQLite because this build environment had no admin
+// rights, Docker, or WSL to run a local Postgres server — a remote hosted Postgres sidesteps
+// that entirely, so the switch was made once deployment was needed. "Enum" fields below
+// remain String columns rather than native Postgres enums, since they were already modeled
+// that way for SQLite compatibility and there's no reason to churn them now — allowed values
+// are enforced at the application layer by Zod schemas in backend/src/validators.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

@@ -4,31 +4,36 @@
 
 - **Frontend**: React + TypeScript + Vite + Tailwind CSS + React Router + TanStack Query.
 - **Backend**: Node.js + Express + TypeScript.
-- **Database**: SQLite via Prisma ORM (see "Database choice" below).
+- **Database**: PostgreSQL (hosted free on Neon) via Prisma ORM (see "Database choice" below).
 - **Validation**: Zod, on every request body/query/params.
 - **Auth**: Session via signed httpOnly JWT cookie (no client-stored role).
-- **Backend tests**: Vitest + Supertest, hitting a real (file-based, reset-per-suite) SQLite database — no mocking of the ORM.
+- **Backend tests**: Vitest + Supertest, hitting a real Postgres database (reset-per-suite) — no mocking of the ORM.
 - **Frontend tests**: Vitest + React Testing Library for key flows.
 - **API style**: REST, JSON, consistent `{ error: { code, message } }` shape on failure.
 
-## Database choice: SQLite instead of PostgreSQL
+## Database choice: PostgreSQL via Neon (originally SQLite)
 
-The spec recommends PostgreSQL. This build environment has no admin rights, no Docker,
-no WSL, and no way to install/run a PostgreSQL server or service. Node.js itself had to be
-installed as a portable, no-admin-required binary. Given that constraint, the user was asked
-and chose SQLite through Prisma as the pragmatic substitute (documented in `docs/decisions.md`).
+The spec recommends PostgreSQL, and that's what the project runs on now — via
+[Neon](https://neon.tech), a free hosted Postgres service, rather than a locally-installed
+server. This was a two-step path, both steps disclosed in `docs/decisions.md`:
 
-This is a deliberate, disclosed substitution, not a silent shortcut:
-- Prisma is still the ORM, so schema, migrations, relations, and unique/foreign-key
-  constraints are expressed identically to how they would be in Postgres.
-- All aggregation queries required by the dashboard (goal 8) and all filtering/sorting/pagination
-  queries (goal 6) are still done at the database layer via Prisma, never in application code
-  over a fully-loaded table, so the "never load the entire dataset into the browser" and
-  "aggregate server/database-side" rules are honored regardless of which SQL engine sits
-  underneath.
-- Switching the real deployment target to PostgreSQL later is a `datasource` provider change
-  in `prisma/schema.prisma` plus re-running `prisma migrate`; no application code depends on
-  SQLite-specific syntax.
+1. **During initial local development**, this build environment had no admin rights, no
+   Docker, no WSL, and no way to install/run a *local* PostgreSQL server or service — Node.js
+   itself had to be installed as a portable, no-admin-required binary. SQLite via Prisma was
+   used as a pragmatic substitute so development could proceed at all (`docs/decisions.md` #1).
+2. **Once a live deployment was needed**, a locally-installed Postgres was still off the
+   table for the same reason — but a *hosted* Postgres isn't, since it needs no local
+   install at all, only network access. Neon's free tier resolved the original constraint
+   directly, so the project switched to it for both local development and production, and
+   SQLite was dropped entirely rather than maintained as a second, parallel supported
+   database (`docs/decisions.md` #18).
+
+Throughout, the substitution was never a silent shortcut: Prisma was always the ORM, so
+schema, migrations, relations, and unique/foreign-key constraints were always expressed the
+same way Postgres expects. All aggregation queries required by the dashboard (goal 8) and
+all filtering/sorting/pagination queries (goal 6) are done at the database layer via Prisma,
+never in application code over a fully-loaded table, regardless of which engine sits
+underneath.
 
 ## High-level layout
 

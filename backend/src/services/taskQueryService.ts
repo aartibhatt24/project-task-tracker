@@ -30,8 +30,14 @@ export function buildTaskWhere(
   const clauses: Prisma.TaskWhereInput[] = [scope];
 
   if (filters.search) {
+    // Postgres's `contains` is case-sensitive by default (unlike SQLite's, which is
+    // case-insensitive for ASCII by default) — `mode: 'insensitive'` makes search behavior
+    // match what it was under SQLite. Only supported by the postgresql connector.
     clauses.push({
-      OR: [{ title: { contains: filters.search } }, { description: { contains: filters.search } }],
+      OR: [
+        { title: { contains: filters.search, mode: 'insensitive' } },
+        { description: { contains: filters.search, mode: 'insensitive' } },
+      ],
     });
   }
   if (filters.projectId) clauses.push({ projectId: filters.projectId });

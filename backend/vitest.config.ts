@@ -5,8 +5,10 @@ export default defineConfig({
     environment: 'node',
     globals: false,
     include: ['tests/**/*.test.ts'],
-    testTimeout: 15000,
-    hookTimeout: 20000,
+    // Generous enough for round-tripping to a remote/serverless Postgres (e.g. Neon) with
+    // several sequential queries per test, not just near-instant local SQLite.
+    testTimeout: 45000,
+    hookTimeout: 45000,
     fileParallelism: false,
     env: {
       NODE_ENV: 'test',
